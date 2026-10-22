@@ -81,7 +81,15 @@ def read_project(directory: Path) -> tuple[list[Path], str]:
     block = re.search(r'^\s*source_files:\s*\n((?:\s*-\s*.+\n?)+)', text, re.M)
     if not top or not block:
         raise SystemExit('info.yaml needs project.top_module and project.source_files')
-    files = [directory / 'src' / item.strip().strip('"\'') for item in re.findall(r'-\s*(.+)', block.group(1))]
+    # info.yaml may come from someone else's repo: accept plain file names only, inside src/
+    names = [item.strip().strip('"\'') for item in re.findall(r'-\s*(.+)', block.group(1))]
+    bad = [n for n in names if not re.fullmatch(r'[A-Za-z0-9_][A-Za-z0-9_./-]*\.(v|sv|vh|svh)', n) or '..' in n.split('/')]
+    if bad or not re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]*', top.group(1)):
+        raise SystemExit('unsupported source file name or top module in info.yaml: ' + ', '.join(bad or [top.group(1)]))
+    src = (directory / 'src').resolve()
+    files = [(src / n).resolve() for n in names]
+    if any(src not in f.parents for f in files):
+        raise SystemExit('source files must be inside src/')
     missing = [str(f) for f in files if not f.is_file()]
     if missing:
         raise SystemExit('missing source files: ' + ', '.join(missing))
@@ -90,7 +98,14 @@ def read_project(directory: Path) -> tuple[list[Path], str]:
 
 def synthesize(files: list[Path], top: str, work: Path) -> dict:
     lib = tt_library()
-    script = (f"read_verilog -sv {' '.join(str(f) for f in files)}; synth -flatten -top {top}; "
+    # sources are copied under generated names so no user text reaches the Yosys script (includes resolve from src/)
+    copies = []
+    for index, source in enumerate(files):
+        name = f'src{index}{source.suffix}'
+        shutil.copyfile(source, work / name)
+        copies.append(name)
+    shutil.copytree(files[0].parent, work / 'inc')   # `include files, also under a fixed name
+    script = (f"read_verilog -sv -Iinc {' '.join(copies)}; synth -flatten -top {top}; "
               f"dfflibmap -liberty {lib}; abc -liberty {lib}; opt_clean; "
               f"tee -q -o stat.json stat -json -liberty {lib}; write_verilog -noattr mapped.v")
     result = subprocess.run(['yosys', '-q', '-p', script], cwd=work, capture_output=True, text=True)
