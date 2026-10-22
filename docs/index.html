@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>tt-fit</title>
+<meta name="description" content="Paste a Tiny Tapeout repository and find out, in your browser, whether it fits its tiles. Yosys runs as WebAssembly; the prediction is calibrated on 436 real sky130 shuttle projects.">
+<meta property="og:title" content="Will your Tiny Tapeout design fit? Check it in your browser.">
+<meta property="og:description" content="Yosys runs in your browser, the prediction is calibrated on 436 real sky130 shuttle projects. No install, no server.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+:root { --wafer: #e7ebef; --ink: #141a22; --ink-2: #4a5462; --rule: #c6cdd6; --met1: #2f5bd3; --diff: #2f8f57; --amber: #b9770e; --poly: #c9473c; --panel: #16191e; --field: #ffffff; --focus: #2f5bd3; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --wafer: #11151b; --ink: #e8ecf1; --ink-2: #9aa5b3; --rule: #2a313b; --met1: #6f93ff; --diff: #4cc283; --amber: #e2a43b; --poly: #ff7a6e; --field: #181d25; --focus: #8eabff; }
+}
+:root[data-theme="dark"] { --wafer: #11151b; --ink: #e8ecf1; --ink-2: #9aa5b3; --rule: #2a313b; --met1: #6f93ff; --diff: #4cc283; --amber: #e2a43b; --poly: #ff7a6e; --field: #181d25; --focus: #8eabff; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--wafer); color: var(--ink); font: 17px/1.55 "Schibsted Grotesk", system-ui, sans-serif; }
+a { color: var(--met1); text-underline-offset: 3px; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+.wrap { max-width: 920px; margin: 0 auto; padding: 0 20px; }
+header { display: flex; justify-content: space-between; align-items: center; padding: 18px 0; font-size: 15px; color: var(--ink-2); gap: 16px; }
+header b { color: var(--ink); }
+header a { color: var(--ink-2); text-decoration: none; margin-left: 18px; }
+h1 { font-size: clamp(38px, 6vw, 66px); line-height: 1; letter-spacing: -0.035em; margin: 36px 0 18px; font-weight: 800; max-width: 13em; }
+.lede { font-size: 19px; color: var(--ink-2); max-width: 36em; margin: 0 0 30px; }
+form { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; }
+input[type=text] { font: inherit; font-size: 18px; padding: 14px 16px; border-radius: 12px; border: 1px solid var(--rule); background: var(--field); color: var(--ink); min-width: 0; }
+button { font: inherit; font-size: 17px; font-weight: 500; padding: 0 22px; border-radius: 12px; border: 0; background: var(--ink); color: var(--wafer); cursor: pointer; }
+button:disabled { opacity: .5; cursor: progress; }
+.examples { font-size: 15px; color: var(--ink-2); margin-top: 12px; }
+.examples button { font-size: 15px; font-weight: 400; padding: 0; background: none; color: var(--met1); text-decoration: underline; text-underline-offset: 3px; margin-right: 14px; }
+.steps { list-style: none; padding: 0; margin: 28px 0 0; font-size: 15px; color: var(--ink-2); }
+.steps li { padding: 4px 0; display: flex; gap: 10px; }
+.steps li::before { content: ""; width: 9px; height: 9px; border-radius: 50%; margin-top: 8px; flex: none; background: var(--rule); }
+.steps li.doing::before { background: var(--amber); }
+.steps li.done::before { background: var(--diff); }
+.steps li.fail { color: var(--poly); }
+.steps li.fail::before { background: var(--poly); }
+.result { margin-top: 36px; border-top: 1px solid var(--rule); padding-top: 32px; }
+.result h2 { font-size: 15px; font-weight: 500; color: var(--ink-2); margin: 0 0 8px; }
+.verdict { font-size: clamp(30px, 4.6vw, 48px); font-weight: 800; letter-spacing: -0.03em; line-height: 1.05; margin: 0 0 6px; }
+.verdict.fits { color: var(--diff); } .verdict.boundary { color: var(--amber); } .verdict.big { color: var(--poly); }
+.sub { color: var(--ink-2); margin: 0 0 26px; max-width: 40em; }
+.band { position: relative; height: 54px; margin: 6px 0 4px; }
+.band .axis { position: absolute; left: 0; right: 0; top: 24px; height: 6px; border-radius: 3px; background: var(--rule); }
+.band .range { position: absolute; top: 18px; height: 18px; border-radius: 9px; opacity: .3; }
+.band .dot { position: absolute; top: 15px; width: 4px; height: 24px; border-radius: 2px; transform: translateX(-2px); background: var(--ink); }
+.band .limit { position: absolute; top: 6px; bottom: 6px; width: 0; border-left: 2px dashed var(--poly); }
+.band .lbl { position: absolute; top: 40px; font-size: 12px; color: var(--ink-2); transform: translateX(-50%); white-space: nowrap; }
+.legend { font-size: 14px; color: var(--ink-2); margin: 0 0 26px; }
+table { width: 100%; border-collapse: collapse; font-size: 15px; }
+th { text-align: left; font-weight: 500; color: var(--ink-2); border-bottom: 1px solid var(--rule); padding: 8px 10px 8px 0; }
+td { border-bottom: 1px solid var(--rule); padding: 10px 10px 10px 0; }
+td.r, th.r { text-align: right; }
+tr.mine td { font-weight: 700; }
+.ok { color: var(--diff); } .mid { color: var(--amber); } .bad { color: var(--poly); }
+.facts { display: flex; flex-wrap: wrap; gap: 6px 28px; color: var(--ink-2); font-size: 15px; margin: 22px 0 0; }
+.facts b { color: var(--ink); font-weight: 500; }
+.note { margin-top: 28px; color: var(--ink-2); font-size: 15px; max-width: 44em; }
+.err { margin-top: 24px; color: var(--poly); max-width: 44em; }
+section.how { margin-top: 64px; border-top: 1px solid var(--rule); padding-top: 32px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px 48px; }
+section.how h3 { margin: 0 0 6px; font-size: 18px; }
+section.how p { margin: 0; color: var(--ink-2); font-size: 16px; }
+pre { background: var(--panel); color: #d8dee6; border-radius: 12px; padding: 16px 18px; overflow-x: auto; font: 13.5px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; margin: 10px 0 0; }
+footer { margin: 64px 0 48px; color: var(--ink-2); font-size: 14px; }
+@media (max-width: 640px) {
+  form { grid-template-columns: 1fr; }
+  button[type=submit] { padding: 13px 22px; }
+  section.how { grid-template-columns: 1fr; }
+  header a:not(:last-child) { display: none; }
+  table { font-size: 14px; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><span><b>tt-fit</b> for Tiny Tapeout</span><nav><a href="#how">How it works</a><a href="https://github.com/Joonsense/tt-fit">GitHub</a></nav></header>
+  <main>
+    <h1>Will your Tiny Tapeout design fit?</h1>
+    <p class="lede">Paste a Tiny Tapeout repository. Yosys runs here in your browser and predicts placement utilization for each tile size, calibrated on 436 real sky130 shuttle projects. Nothing is uploaded.</p>
+    <form id="form">
+      <label for="repo" class="sr" style="position:absolute;left:-9999px">GitHub repository</label>
+      <input id="repo" type="text" placeholder="github.com/you/your-tt-project" autocomplete="off" spellcheck="false" required>
+      <button type="submit" id="go">Check fit</button>
+    </form>
+    <div class="examples">Try: <button type="button" data-repo="Joonsense/tt-digit-classifier">a digit classifier (2 tiles)</button><button type="button" data-repo="Joonsense/tt-lowbit-dot-accelerator">an 8 MAC per clock accelerator</button><button type="button" data-repo="TinyTapeout/ttsky-verilog-template">the Verilog template</button></div>
+    <ol class="steps" id="steps" aria-live="polite"></ol>
+    <div id="out"></div>
+  </main>
+
+  <section class="how" id="how">
+    <div><h3>What it measures</h3><p>Standard cell area after Yosys synthesis against the sky130_fd_sc_hd typical corner, the same script as the command line tool. Utilization = 1.337 × area ÷ core area + 8.4 points, the fit across 436 projects from ttsky26a, 26b and 26c.</p></div>
+    <div><h3>How good it is</h3><p>Fit on two shuttles and tested on the third, the mean error was 4.4 points and 92% of projects landed inside the band shown. Dense arithmetic tends to land near the top of the band. It is a prediction, not signoff.</p></div>
+    <div><h3>What it does not check here</h3><p>Timing. The command line version adds slow corner setup slack with OpenSTA and reports how often real projects with that slack missed 50 MHz. OpenSTA does not run in a browser.</p></div>
+    <div><h3>Use it in CI</h3><p>One step in your workflow writes the same report to every push's job summary.</p>
+<pre>- uses: actions/checkout@v4
+- uses: Joonsense/tt-fit@v1</pre></div>
+  </section>
+  <footer>Yosys as WebAssembly by <a href="https://yowasp.org">YoWASP</a>. sky130 cell library: Apache 2.0, SkyWater and Google. Not affiliated with Tiny Tapeout. Made by Kai Kim, part of <a href="https://joonsense.github.io/tt-int4-dot-accelerator/">Digit Chip</a>.</footer>
+</div>
+
+<script type="module">
+const YOSYS = 'https://cdn.jsdelivr.net/npm/@yowasp/yosys@0.70.1258/gen/bundle.js';
+const LIB_URL = 'https://raw.githubusercontent.com/The-OpenROAD-Project/OpenROAD-flow-scripts/f52850725e4ffe4030175328aa976cd8fb4943b9/flow/platforms/sky130hd/lib/sky130_fd_sc_hd__tt_025C_1v80.lib';
+const LIB_SHA256 = 'ec0e1067a35c8bf20b11e58d1e8ac53326067e4dac84a125cc1b917a3518d0d9';
+const TILES = { '1x1': 1, '1x2': 2, '2x2': 4, '3x2': 6, '4x2': 8, '6x2': 12, '8x2': 16 };
+const $ = id => document.getElementById(id);
+const steps = $('steps'), out = $('out');
+let model = null, yosys = null, lib = null;
+
+function step(text) {
+  const li = document.createElement('li'); li.className = 'doing'; li.textContent = text; steps.appendChild(li);
+  return { done: t => { li.className = 'done'; if (t) li.textContent = t; }, fail: t => { li.className = 'fail'; li.textContent = t; } };
+}
+function parseRepo(text) {
+  const m = text.trim().replace(/\.git$/, '').match(/(?:github\.com[/:])?([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)(?:\/tree\/([^/\s]+))?/);
+  if (!m) throw new Error('Paste a GitHub repository, for example github.com/you/your-tt-project.');
+  return { owner: m[1], repo: m[2], ref: m[3] || null };
+}
+async function json(url) { const r = await fetch(url); if (!r.ok) throw new Error(`${url.replace('https://', '')} answered ${r.status}`); return r.json(); }
+async function text(url) { const r = await fetch(url); if (!r.ok) throw new Error(`${url.replace('https://', '')} answered ${r.status}`); return r.text(); }
+async function sha256(s) { const d = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)); return [...new Uint8Array(d)].map(b => b.toString(16).padStart(2, '0')).join(''); }
+
+function readInfo(info) {
+  const top = (info.match(/^\s*top_module:\s*["']?([A-Za-z_][A-Za-z0-9_]*)/m) || [])[1];
+  const tiles = (info.match(/^\s*tiles:\s*["']?([0-9]x[0-9])/m) || [])[1] || null;
+  const block = (info.match(/^\s*source_files:\s*\n((?:\s*-\s*.+\n?)+)/m) || [])[1];
+  const lang = ((info.match(/^\s*language:\s*["']?([^"'#\n]+)/m) || [])[1] || '').trim();
+  if (!top || !block) throw new Error('info.yaml needs project.top_module and project.source_files.');
+  const files = [...block.matchAll(/-\s*(.+)/g)].map(m => m[1].trim().replace(/^["']|["']$/g, ''));
+  return { top, tiles, files, lang };
+}
+function predict(area, tiles) {
+  const core = model.core_area_um2[tiles] || model.core_area_um2['1x1'] * TILES[tiles];
+  const u = model.slope * area / core + model.offset;
+  const lo = u + model.band_p5, hi = u + model.band_p95, lim = model.fits_limit;
+  return { u, lo, hi, verdict: hi <= lim ? 'fits' : lo <= lim ? 'boundary' : 'too big' };
+}
+const pct = x => (x * 100).toFixed(1) + '%';
+
+async function check(input) {
+  steps.innerHTML = ''; out.innerHTML = ''; $('go').disabled = true;
+  try {
+    const { owner, repo, ref: wanted } = parseRepo(input);
+    model = model || await json('calibration.json');
+    let s = step(`Reading ${owner}/${repo}`);
+    const ref = wanted || (await json(`https://api.github.com/repos/${owner}/${repo}`)).default_branch;
+    const info = readInfo(await text(`https://raw.githubusercontent.com/${owner}/${repo}/${ref}/info.yaml`));
+    if (/wokwi|analog|custom/i.test(info.lang)) throw new Error(`This project's language is "${info.lang}". tt-fit reads Verilog sources only.`);
+    s.done(`Read info.yaml: top module ${info.top}, ${info.files.length} source file${info.files.length > 1 ? 's' : ''}${info.tiles ? ', asks for ' + info.tiles : ''}`);
+
+    s = step('Fetching sources');
+    const tree = await json(`https://api.github.com/repos/${owner}/${repo}/git/trees/${ref}?recursive=1`);
+    const hdl = tree.tree.filter(t => t.type === 'blob' && t.path.startsWith('src/') && /\.(v|sv|vh|svh)$/.test(t.path) && !t.path.split('/').includes('..'));
+    const files = {}, inc = {};
+    for (const t of hdl) {
+      const body = await text(`https://raw.githubusercontent.com/${owner}/${repo}/${ref}/${t.path}`);
+      let node = inc; const parts = t.path.slice(4).split('/');
+      parts.slice(0, -1).forEach(p => { node = node[p] = node[p] || {}; }); node[parts.at(-1)] = body;
+    }
+    const names = [];
+    info.files.forEach((f, i) => {
+      if (!/^[A-Za-z0-9_][A-Za-z0-9_./-]*\.(v|sv|vh|svh)$/.test(f) || f.split('/').includes('..')) throw new Error(`Unsupported source file name in info.yaml: ${f}`);
+      let node = inc; for (const p of f.split('/')) node = node && node[p];
+      if (typeof node !== 'string') throw new Error(`src/${f} is listed in info.yaml but not in the repository.`);
+      const name = `src${i}.${f.split('.').pop()}`; files[name] = node; names.push(name);
+    });
+    files.inc = inc;
+    s.done(`Fetched ${hdl.length} file${hdl.length > 1 ? 's' : ''} from src/ at ${ref}`);
+
+    s = step('Loading Yosys as WebAssembly (about 30 MB the first time, cached after)');
+    yosys = yosys || (await import(YOSYS)).runYosys;
+    s.done('Yosys loaded');
+    s = step('Loading the sky130 cell library (12.8 MB, cached after)');
+    if (!lib) { lib = await text(LIB_URL); if (await sha256(lib) !== LIB_SHA256) { lib = null; throw new Error('The cell library did not match its pinned checksum.'); } }
+    files['lib.lib'] = lib;
+    s.done('Cell library loaded and checksum verified');
+
+    s = step('Synthesizing (10 to 60 seconds for most designs)');
+    const t0 = performance.now();
+    let log = '';
+    const script = `read_verilog -sv -Iinc ${names.join(' ')}; synth -flatten -top ${info.top}; dfflibmap -liberty lib.lib; abc -liberty lib.lib; opt_clean; tee -q -o stat.json stat -json -liberty lib.lib`;
+    let result;
+    try {
+      result = await yosys(['-q', '-p', script], files, { stdout: b => { if (b) log += new TextDecoder().decode(b); }, stderr: b => { if (b) log += new TextDecoder().decode(b); } });
+    } catch (e) { throw new Error('Yosys stopped: ' + ((log || e.message).split('\n').filter(l => /ERROR|error/.test(l)).slice(-2).join(' ') || e.message)); }
+    const stat = JSON.parse(result['stat.json']);
+    const mod = stat.design || Object.values(stat.modules)[0];
+    const kinds = mod.num_cells_by_type || {};
+    const flops = Object.entries(kinds).filter(([k]) => /df/i.test(k)).reduce((a, [, n]) => a + n, 0);
+    s.done(`Synthesized in ${((performance.now() - t0) / 1000).toFixed(1)} s`);
+    render(owner, repo, ref, info, +mod.area, mod.num_cells, flops);
+  } catch (e) {
+    const li = steps.querySelector('li.doing'); if (li) { li.className = 'fail'; }
+    out.innerHTML = `<p class="err">${e.message}</p>`;
+  } finally { $('go').disabled = false; }
+}
+
+function render(owner, repo, ref, info, area, cells, flops) {
+  const rows = Object.keys(TILES).map(t => ({ t, ...predict(area, t) }));
+  const pick = rows.find(r => r.verdict !== 'too big') || rows.at(-1);
+  const mine = info.tiles && rows.find(r => r.t === info.tiles);
+  const focus = mine || pick;
+  const cls = { 'fits': 'fits', 'boundary': 'boundary', 'too big': 'big' }[focus.verdict];
+  const words = { 'fits': 'Fits', 'boundary': 'Borderline in', 'too big': 'Too big for' }[focus.verdict];
+  const scale = x => Math.max(0, Math.min(100, x / 1.2 * 100));
+  const color = { fits: 'var(--diff)', boundary: 'var(--amber)', 'too big': 'var(--poly)' }[focus.verdict];
+  const advice = mine && pick.t !== mine.t ? (TILES[pick.t] < TILES[mine.t] ? ` It would also fit ${pick.t}.` : ` The smallest size that is not too big is ${pick.t}.`) : '';
+  out.innerHTML = `<div class="result">
+    <h2>${owner}/${repo} at ${ref}</h2>
+    <p class="verdict ${cls}">${words} ${focus.t}</p>
+    <p class="sub"><code>${info.top}</code>: predicted placement utilization ${pct(focus.u)}, likely between ${pct(focus.lo)} and ${pct(focus.hi)}. "Fits" means the whole band stays under ${pct(model.fits_limit)}; real projects have routed up to ${pct(model.routed_max)}.${advice}</p>
+    <div class="band" role="img" aria-label="Predicted ${pct(focus.u)}, band ${pct(focus.lo)} to ${pct(focus.hi)}, limit ${pct(model.fits_limit)}">
+      <div class="axis"></div>
+      <div class="range" style="left:${scale(focus.lo)}%;width:${scale(focus.hi) - scale(focus.lo)}%;background:${color}"></div>
+      <div class="dot" style="left:${scale(focus.u)}%"></div>
+      <div class="limit" style="left:${scale(model.fits_limit)}%"></div>
+      <span class="lbl" style="left:0;transform:none">0%</span><span class="lbl" style="left:${scale(0.5)}%">50%</span><span class="lbl" style="left:${scale(model.fits_limit)}%">limit</span>
+    </div>
+    <p class="legend">Bar: the 90% band of the prediction. Line: the prediction. Dashes: the limit.</p>
+    <table><thead><tr><th>Tiles</th><th class="r">Predicted</th><th class="r">Likely range</th><th>Verdict</th></tr></thead><tbody>
+    ${rows.map(r => `<tr class="${mine && r.t === mine.t ? 'mine' : ''}"><td>${r.t}${mine && r.t === mine.t ? ' (yours)' : ''}</td><td class="r">${pct(r.u)}</td><td class="r">${pct(r.lo)} to ${pct(r.hi)}</td><td class="${r.verdict === 'fits' ? 'ok' : r.verdict === 'boundary' ? 'mid' : 'bad'}">${r.verdict}</td></tr>`).join('')}
+    </tbody></table>
+    <div class="facts"><span><b>${area.toLocaleString('en-US', { maximumFractionDigits: 0 })} µm²</b> of cells before layout</span><span><b>${cells.toLocaleString('en-US')}</b> cells</span><span><b>${flops.toLocaleString('en-US')}</b> flip flops</span></div>
+    <p class="note">Share this result: <a href="?repo=${encodeURIComponent(owner + '/' + repo)}">link to this check</a>. Timing is not checked in the browser. For slow corner slack at 50 MHz, run <code>python3 tt_fit.py</code> with OpenSTA, or add the GitHub Action.</p>
+  </div>`;
+  out.querySelector('.result').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+}
+
+$('form').addEventListener('submit', e => { e.preventDefault(); check($('repo').value); });
+document.querySelectorAll('.examples button').forEach(b => b.addEventListener('click', () => { $('repo').value = 'github.com/' + b.dataset.repo; check($('repo').value); }));
+const q = new URLSearchParams(location.search).get('repo');
+if (q) { $('repo').value = q; check(q); }
+</script>
+</body>
+</html>

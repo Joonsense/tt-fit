@@ -2,6 +2,8 @@
 
 **Will your Tiny Tapeout design fit its tiles and meet 50 MHz? Find out in 2 seconds, before the 10 minute hardening run.**
 
+**[Try it in your browser](https://joonsense.github.io/tt-fit/)**: paste a repository, Yosys runs as WebAssembly, nothing is installed or uploaded.
+
 ```
 $ python3 tt_fit.py path/to/your-tt-project
 tt_um_joonsense_pin_dot_b26e52f8: 6,334 um2 of cells before layout (806 cells, 105 flops)
