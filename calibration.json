@@ -1,0 +1,240 @@
+{
+ "summary": "fit on 13 LibreLane 3.0.14 hardenings (2026-10-21), then checked on 9 later 1x1 layouts it had not seen: error -1.4 to +2.2 points",
+ "placed_per_estimate": 1.4294,
+ "placed_per_core": 0.0846,
+ "core_area_um2": {
+  "1": 16493.3,
+  "2": 34255.4,
+  "4": 72564.6
+ },
+ "error": [
+  -0.039,
+  0.067
+ ],
+ "max_routed_utilization": 0.824,
+ "timing": {
+  "pass_min_ns": 1.89,
+  "fail_max_ns": -1.07,
+  "note": "20 ns clock only. Pre-layout slack at or above pass_min always closed after layout in calibration; at or below fail_max never did."
+ },
+ "calibration": [
+  {
+   "design": "3c0e790e",
+   "tiles": 1,
+   "estimate_um2": 6506.24,
+   "utilization": 0.655743,
+   "result": "passed"
+  },
+  {
+   "design": "fb49bf62",
+   "tiles": 1,
+   "estimate_um2": 6535.02,
+   "utilization": 0.657867,
+   "result": "passed"
+  },
+  {
+   "design": "00c02d1e",
+   "tiles": 1,
+   "estimate_um2": 6410.0,
+   "utilization": 0.7074,
+   "result": "passed"
+  },
+  {
+   "design": "e4d190eb",
+   "tiles": 1,
+   "estimate_um2": 7439.64,
+   "utilization": 0.769003,
+   "result": "passed"
+  },
+  {
+   "design": "e7120973",
+   "tiles": 1,
+   "estimate_um2": 7477.17,
+   "utilization": 0.775679,
+   "result": "passed"
+  },
+  {
+   "design": "3a12d3a1",
+   "tiles": 1,
+   "estimate_um2": 7477.17,
+   "utilization": 0.7796,
+   "result": "passed"
+  },
+  {
+   "design": "39d07fdf",
+   "tiles": 1,
+   "estimate_um2": 7587.28,
+   "utilization": 0.78152,
+   "result": "passed"
+  },
+  {
+   "design": "a1678f39",
+   "tiles": 1,
+   "estimate_um2": 7614.8,
+   "utilization": 0.766651,
+   "result": "passed"
+  },
+  {
+   "design": "a60b58d7",
+   "tiles": 2,
+   "estimate_um2": 14702.85,
+   "utilization": 0.659471,
+   "result": "timing"
+  },
+  {
+   "design": "382b561e",
+   "tiles": 2,
+   "estimate_um2": 17965.98,
+   "utilization": 0.820038,
+   "result": "timing"
+  },
+  {
+   "design": "cda765bd",
+   "tiles": 4,
+   "estimate_um2": 24539.79,
+   "utilization": 0.56566,
+   "result": "timing"
+  },
+  {
+   "design": "1105b88a",
+   "tiles": 1,
+   "estimate_um2": 5530.3,
+   "utilization": 0.572523,
+   "result": "passed"
+  },
+  {
+   "design": "e136f424",
+   "tiles": 1,
+   "estimate_um2": 4399.22,
+   "utilization": 0.442877,
+   "result": "passed"
+  }
+ ],
+ "held_out": [
+  {
+   "design": "004dacab",
+   "tiles": 1,
+   "estimate_um2": 5254,
+   "utilization": 0.527765,
+   "predicted": 0.5399
+  },
+  {
+   "design": "40512bdc",
+   "tiles": 1,
+   "estimate_um2": 5655,
+   "utilization": 0.582157,
+   "predicted": 0.5747
+  },
+  {
+   "design": "bbf8c89d",
+   "tiles": 1,
+   "estimate_um2": 7609,
+   "utilization": 0.730466,
+   "predicted": 0.744
+  },
+  {
+   "design": "0b48ebab",
+   "tiles": 1,
+   "estimate_um2": 7781,
+   "utilization": 0.751783,
+   "predicted": 0.7589
+  },
+  {
+   "design": "5b7ae333",
+   "tiles": 1,
+   "estimate_um2": 7875,
+   "utilization": 0.781293,
+   "predicted": 0.7671
+  },
+  {
+   "design": "3509588d",
+   "tiles": 1,
+   "estimate_um2": 8030,
+   "utilization": 0.768169,
+   "predicted": 0.7805
+  },
+  {
+   "design": "bda7c0ee",
+   "tiles": 1,
+   "estimate_um2": 8209,
+   "utilization": 0.799499,
+   "predicted": 0.796
+  },
+  {
+   "design": "d2883ddf",
+   "tiles": 1,
+   "estimate_um2": 8277,
+   "utilization": 0.824078,
+   "predicted": 0.8019
+  },
+  {
+   "design": "645d8a15",
+   "tiles": 1,
+   "estimate_um2": 8416,
+   "utilization": 0.824306,
+   "predicted": 0.814
+  }
+ ],
+ "timing_calibration": [
+  {
+   "design": "00c02d1e",
+   "pre_ns": 3.6412,
+   "post_ns": 6.286
+  },
+  {
+   "design": "382b561e",
+   "pre_ns": -3.5862,
+   "post_ns": -1.118
+  },
+  {
+   "design": "39d07fdf",
+   "pre_ns": 7.183,
+   "post_ns": 3.405
+  },
+  {
+   "design": "3c0e790e",
+   "pre_ns": 1.9973,
+   "post_ns": 4.303
+  },
+  {
+   "design": "a1678f39",
+   "pre_ns": 7.7205,
+   "post_ns": 4.863
+  },
+  {
+   "design": "a60b58d7",
+   "pre_ns": -0.4479,
+   "post_ns": -0.011
+  },
+  {
+   "design": "cda765bd",
+   "pre_ns": -14.4546,
+   "post_ns": -8.213
+  },
+  {
+   "design": "e4d190eb",
+   "pre_ns": 7.8098,
+   "post_ns": 3.635
+  },
+  {
+   "design": "e7120973",
+   "pre_ns": 7.7878,
+   "post_ns": 4.926
+  },
+  {
+   "design": "fb49bf62",
+   "pre_ns": 1.8943,
+   "post_ns": 3.019
+  },
+  {
+   "design": "1105b88a",
+   "pre_ns": 5.0404,
+   "post_ns": 2.4531
+  },
+  {
+   "design": "e136f424",
+   "pre_ns": -1.0642,
+   "post_ns": 0.693
+  }
+ ]
+}
