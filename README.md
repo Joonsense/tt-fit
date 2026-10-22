@@ -39,6 +39,19 @@ Timing is reported as what actually happened to real projects with a 20 ns clock
 | +6 to +8 ns | 43 | 2 (5%) |
 | +8 ns and up | 167 | **0** |
 
+On the author's five public repos, run by the Action in CI and compared with each repo's own `gds` run (2026-10-22):
+
+| Repo | Predicted (band) | Real layout | In band | Pre layout slack → real ss slack |
+|---|---|---|---|---|
+| [tt-uart-dot-accelerator](https://github.com/Joonsense/tt-uart-dot-accelerator) | 61.1% (53.9 to 69.4) | 65.5% | yes | +2.05 ns (32% of real projects there missed) → +5.14 |
+| [tt-pin-dot-accelerator](https://github.com/Joonsense/tt-pin-dot-accelerator) | 59.9% (52.8 to 68.2) | 61.8% | yes | +9.34 → +7.13 |
+| [tt-lowbit-dot-accelerator](https://github.com/Joonsense/tt-lowbit-dot-accelerator) | 75.9% (68.7 to 84.2) | 82.5% | yes | +8.40 → +5.52 |
+| [tt-int4-dot-accelerator](https://github.com/Joonsense/tt-int4-dot-accelerator) | 71.8% (64.7 to 80.1) | 76.9% | yes | +10.59 → +9.43 |
+| [tt-digit-classifier](https://github.com/Joonsense/tt-digit-classifier) (1x2) | 66.3% (59.2 to 74.6) | 75.0% | **no**, 0.4 over | +9.31 → +5.26 |
+
+All five are arithmetic heavy and all five came in above the prediction (1.9 to 8.7 points). If your design is mostly
+adders and multipliers, read the top of the band.
+
 Version 1 was fit on 13 layouts of one designer and claimed a ±3 point band and a "+1.89 ns always closes" rule.
 On the 436 real projects it over predicted by a median 3.8 points, and 17 projects at +2 ns or more missed timing.
 Both claims are withdrawn. **It is a prediction, not a signoff**: the TT GitHub Actions flow is still the judge.
