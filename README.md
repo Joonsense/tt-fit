@@ -48,8 +48,10 @@ Both claims are withdrawn. **It is a prediction, not a signoff**: the TT GitHub 
 Needs Python 3.10+ and Yosys (`brew install yosys`, `apt install yosys`, or the OSS CAD Suite). The typical corner
 Liberty (12.8 MB, Apache 2.0) is downloaded once to `~/.cache/tt-fit` and checked against a pinned SHA-256.
 
-For the timing check, also: OpenSTA (`sta` on PATH) and the sky130 PDK from `ciel` or `volare` (it looks in `~/.ciel`,
-`~/.volare` and `$PDK_ROOT`, or set `TT_FIT_SS_LIB` to `sky130_fd_sc_hd__ss_100C_1v60.lib`). Without them it skips timing.
+For the timing check, also OpenSTA (`sta` on PATH). The slow corner Liberty is taken from `TT_FIT_SS_LIB`, else from a
+sky130 PDK installed by `ciel` or `volare` (`~/.ciel`, `~/.volare`, `$PDK_ROOT`), else downloaded once (12.8 MB) from this
+repo's [release mirror](https://github.com/Joonsense/tt-fit/releases/tag/sky130-ss-8afc8346) of the exact file in the PDK
+that LibreLane 3.0.14 uses, pinned by SHA-256. Without OpenSTA it skips timing. The GitHub Action installs OpenSTA for you.
 
 ```
 python3 tt_fit.py [PROJECT_DIR] [--tiles 1x2] [--json]
@@ -73,9 +75,13 @@ jobs:
       - uses: Joonsense/tt-fit@v1
 ```
 
-It installs Yosys from the OSS CAD Suite, runs the area and tile prediction, and writes a table to the job summary in
-about a minute. Timing is skipped in CI (OpenSTA and the sky130 slow corner Liberty are not installed there).
-Inputs: `project-dir`, `tiles`, `fail-on-risk: true` to fail the step on a "too big" verdict.
+It installs Yosys from the OSS CAD Suite and a prebuilt OpenSTA (LibreLane 3.0.14, from its Nix binary cache, about 25
+seconds on `ubuntu-24.04` x64), runs the tile and 50 MHz timing prediction, and writes a table to the job summary.
+Inputs: `project-dir`, `tiles`, `fail-on-risk: true` to fail the step on a "too big" or likely timing failure verdict,
+`timing: false` to skip OpenSTA. The `self-test` workflow in this repo runs the action on a real TT project on every push.
+
+Yosys in the OSS CAD Suite is newer than the one this model was fit with, so the pre layout slack can differ by about a
+nanosecond from a local run (+8.40 ns in CI vs +7.54 ns locally on the same project); the verdict bands are 2 ns wide.
 
 ## Where it comes from
 
