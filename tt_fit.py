@@ -102,9 +102,17 @@ def synthesize(files: list[Path], top: str, work: Path) -> dict:
     copies = []
     for index, source in enumerate(files):
         name = f'src{index}{source.suffix}'
-        shutil.copyfile(source, work / name)
+        shutil.copyfile(source, work / name)   # source was resolved and checked to be inside src/
         copies.append(name)
-    shutil.copytree(files[0].parent, work / 'inc')   # `include files, also under a fixed name
+    # `include files: only regular HDL files whose real path stays inside src/, no symlinks, under a fixed name
+    src = files[0].parent if files else work
+    root = Path(src).resolve()
+    for path in root.rglob('*'):
+        if path.suffix in ('.v', '.sv', '.vh', '.svh') and path.is_file() and not path.is_symlink() and root in path.resolve().parents:
+            target = work / 'inc' / path.relative_to(root)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(path, target)
+    (work / 'inc').mkdir(exist_ok=True)
     script = (f"read_verilog -sv -Iinc {' '.join(copies)}; synth -flatten -top {top}; "
               f"dfflibmap -liberty {lib}; abc -liberty {lib}; opt_clean; "
               f"tee -q -o stat.json stat -json -liberty {lib}; write_verilog -noattr mapped.v")
