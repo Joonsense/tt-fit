@@ -1,5 +1,5 @@
 {
- "summary": "fit on 13 LibreLane 3.0.14 hardenings (2026-10-21), then checked on 9 later 1x1 layouts it had not seen: error -1.4 to +2.2 points",
+ "summary": "fit on 13 LibreLane 3.0.14 hardenings (2026-10-21), then checked on 10 later layouts it had not seen (1x1 and 1x2): error -1.4 to +2.2 points",
  "placed_per_estimate": 1.4294,
  "placed_per_core": 0.0846,
  "core_area_um2": {
@@ -13,9 +13,9 @@
  ],
  "max_routed_utilization": 0.824,
  "timing": {
-  "pass_min_ns": 1.89,
+  "pass_min_ns": 4.5,
   "fail_max_ns": -1.07,
-  "note": "20 ns clock only. Pre-layout slack at or above pass_min always closed after layout in calibration; at or below fail_max never did."
+  "note": "20 ns clock only. Pre layout slack is ideal wiring. In calibration every design at or above pass_min closed after layout, and every design at or below fail_max failed. Raised from 1.89 to 4.5 after a design at +4.46 failed by 0.65 ns: its input pins fanned out to hundreds of gates. Register high fanout inputs if you are near the line."
  },
  "calibration": [
   {
@@ -173,6 +173,13 @@
    "estimate_um2": 8416,
    "utilization": 0.824306,
    "predicted": 0.814
+  },
+  {
+   "design": "tt-digit-classifier first layout",
+   "tiles": 2,
+   "estimate_um2": 11606,
+   "utilization": 0.585324,
+   "predicted": 0.569
   }
  ],
  "timing_calibration": [
@@ -235,6 +242,12 @@
    "design": "e136f424",
    "pre_ns": -1.0642,
    "post_ns": 0.693
+  },
+  {
+   "design": "tt-digit-classifier first layout",
+   "pre_ns": 4.46,
+   "post_ns": -0.648,
+   "note": "input pins fan out to ~80 constant tables; wire delay on input paths is not in the pre layout estimate"
   }
  ]
 }
