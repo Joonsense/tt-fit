@@ -149,12 +149,13 @@ def predict(area: float, tiles: int, m: dict) -> dict:
     return {'utilization': round(utilization, 3), 'range': [round(low, 3), round(high, 3)], 'verdict': verdict}
 
 
-def timing_verdict(value: float | None, m: dict) -> str:
+def timing_verdict(value: float | None, m: dict, tiles: int) -> str:
     if value is None:
         return 'not checked'
-    if value >= m['timing']['pass_min_ns']:
+    rule = m['timing']['1x1' if tiles == 1 else 'larger']
+    if value >= rule['pass_min_ns']:
         return 'meets'
-    return 'fails' if value <= m['timing']['fail_max_ns'] else 'boundary'
+    return 'fails' if value <= rule['fail_max_ns'] else 'boundary'
 
 
 def main(argv=None) -> int:
@@ -175,7 +176,7 @@ def main(argv=None) -> int:
     # smallest tile that is not too big; 'boundary' means the likely range crosses the highest utilization seen to route
     chosen = next((name for name in sizes if checks[name]['verdict'] != 'too big'), sizes[-1])
     report = {'top': top, **synth, 'tiles': chosen, **checks[chosen], 'pre_layout_ss_slack_ns': pre_slack,
-              'timing': timing_verdict(pre_slack, m), 'model': m['summary']}
+              'timing': timing_verdict(pre_slack, m, TILES[chosen]), 'model': m['summary']}
     if args.json:
         print(json.dumps(report, indent=1))
     else:

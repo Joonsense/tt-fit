@@ -17,19 +17,22 @@ TT flow uses, and says whether that has always, never, or sometimes closed after
 ## How good is the prediction
 
 The model was fit on 13 hardenings (LibreLane 3.0.14, sky130A, TT template) and then frozen. It was then checked on
-**10 later layouts it had never seen** (9 at 1x1, 1 at 1x2):
+**13 later layouts it had never seen** (9 at 1x1, 4 at 1x2):
 
 | | |
 |---|---|
-| Error on the 10 unseen layouts | **−1.4 to +2.2 percentage points** of utilization |
+| Error on the 9 unseen 1x1 layouts | **−1.4 to +2.2 percentage points** of utilization |
+| Error on the 4 unseen 1x2 layouts | +0.5 to +6.4 points (dense logic came out bigger than predicted) |
 | Error band it reports (from the fit set, wider on purpose) | −3.9 to +6.7 points |
 | Highest utilization that routed cleanly in the data | 82.4% |
-| Timing rule (20 ns clock) | pre-layout ss slack ≥ +4.5 ns always closed; ≤ −1.07 ns never did; in between, run the layout |
+| Timing rule, 1x1 (20 ns clock) | pre-layout ss slack ≥ +1.89 ns always closed; ≤ −1.07 ns never did; in between, run the layout |
+| Timing rule, larger tiles | ≥ +8.4 ns (one dense 1x2 design missed at +4.46 and +6.32 ns, closed at +8.42 ns) |
 
-Every data point is in [`calibration.json`](calibration.json), including the failures. The timing line used to be
-+1.89 ns. Then a design at +4.46 ns missed by 0.65 ns after routing: each of its input pins fed about 80 gates, and the
-wire delay on those input paths does not exist before layout. The line moved to +4.5 ns. If you are close, register
-high fanout inputs. The designs are small accelerators
+Every data point is in [`calibration.json`](calibration.json), including the failures. The larger tile line comes from
+[tt-digit-classifier](https://github.com/Joonsense/tt-digit-classifier): at +4.46 ns it missed by 0.65 ns after routing
+(each input pin fed about 80 gates, and wire delay does not exist before layout), at +6.32 ns it missed by 0.004 ns
+(a 10 way comparison), and at +8.42 ns it closed with +5.26 ns. If you are close, register high fanout inputs and split
+wide comparisons. The designs are small accelerators
 and peripherals; very different designs (lots of memories, long carry chains) may sit outside the data. **It is a
 prediction, not a signoff**: the TT GitHub Actions flow is still the judge.
 
