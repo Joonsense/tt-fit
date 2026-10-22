@@ -15,8 +15,7 @@ jobs:
         uses: ./
         with:
           project-dir: example
-      - name: timing was checked
+      - name: timing was checked (OpenSTA from the action is on PATH)
         run: |
-          grep -q "50 MHz" "$GITHUB_STEP_SUMMARY"
-          ! grep -q "not checked" "$GITHUB_STEP_SUMMARY"
-          grep -E "timing|utilization" "$GITHUB_STEP_SUMMARY"
+          python3 tt_fit.py example --json | tee fit.json
+          python3 -c "import json; d = json.load(open('fit.json')); assert d['pre_layout_ss_slack_ns'] is not None, d; assert d['tiles'] == '1x1', d"
