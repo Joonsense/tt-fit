@@ -108,6 +108,8 @@ const LIB_URL = 'https://raw.githubusercontent.com/The-OpenROAD-Project/OpenROAD
 const LIB_SHA256 = 'ec0e1067a35c8bf20b11e58d1e8ac53326067e4dac84a125cc1b917a3518d0d9';
 const TILES = { '1x1': 1, '1x2': 2, '2x2': 4, '3x2': 6, '4x2': 8, '6x2': 12, '8x2': 16 };
 const $ = id => document.getElementById(id);
+// everything below comes from someone else's repository: escape before it touches HTML
+const esc = v => String(v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const steps = $('steps'), out = $('out');
 let model = null, yosys = null, lib = null;
 
@@ -195,7 +197,7 @@ async function check(input) {
     render(owner, repo, ref, info, +mod.area, mod.num_cells, flops);
   } catch (e) {
     const li = steps.querySelector('li.doing'); if (li) { li.className = 'fail'; }
-    out.innerHTML = `<p class="err">${e.message}</p>`;
+    const p = document.createElement('p'); p.className = 'err'; p.textContent = e.message; out.replaceChildren(p);
   } finally { $('go').disabled = false; }
 }
 
@@ -210,9 +212,9 @@ function render(owner, repo, ref, info, area, cells, flops) {
   const color = { fits: 'var(--diff)', boundary: 'var(--amber)', 'too big': 'var(--poly)' }[focus.verdict];
   const advice = mine && pick.t !== mine.t ? (TILES[pick.t] < TILES[mine.t] ? ` It would also fit ${pick.t}.` : ` The smallest size that is not too big is ${pick.t}.`) : '';
   out.innerHTML = `<div class="result">
-    <h2>${owner}/${repo} at ${ref}</h2>
+    <h2>${esc(owner)}/${esc(repo)} at ${esc(ref)}</h2>
     <p class="verdict ${cls}">${words} ${focus.t}</p>
-    <p class="sub"><code>${info.top}</code>: predicted placement utilization ${pct(focus.u)}, likely between ${pct(focus.lo)} and ${pct(focus.hi)}. "Fits" means the whole band stays under ${pct(model.fits_limit)}; real projects have routed up to ${pct(model.routed_max)}.${advice}</p>
+    <p class="sub"><code>${esc(info.top)}</code>: predicted placement utilization ${pct(focus.u)}, likely between ${pct(focus.lo)} and ${pct(focus.hi)}. "Fits" means the whole band stays under ${pct(model.fits_limit)}; real projects have routed up to ${pct(model.routed_max)}.${advice}</p>
     <div class="band" role="img" aria-label="Predicted ${pct(focus.u)}, band ${pct(focus.lo)} to ${pct(focus.hi)}, limit ${pct(model.fits_limit)}">
       <div class="axis"></div>
       <div class="range" style="left:${scale(focus.lo)}%;width:${scale(focus.hi) - scale(focus.lo)}%;background:${color}"></div>
