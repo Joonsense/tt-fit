@@ -197,10 +197,10 @@
   {
    "design": "tt-digit-classifier, row sums registered",
    "tiles": 2,
-   "estimate_um2": 13200,
+   "estimate_um2": 13813,
    "utilization": 0.725254,
    "predicted": 0.661,
-   "note": "estimate from tt_fit before push"
+   "note": "estimate back computed from the 66.1% tt_fit printed before the push"
   },
   {
    "design": "tt-digit-classifier, two stage argmax",
