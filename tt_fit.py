@@ -158,11 +158,23 @@ def timing_verdict(value: float | None, m: dict, tiles: int) -> str:
     return 'fails' if value <= rule['fail_max_ns'] else 'boundary'
 
 
+def markdown(r: dict, m: dict) -> str:
+    timing = ('not checked (needs OpenSTA and the sky130 PDK)' if r['pre_layout_ss_slack_ns'] is None
+              else f"{r['pre_layout_ss_slack_ns']:+.2f} ns before layout -> **{r['timing']}**")
+    return (f"### tt-fit: `{r['top']}`\n\n"
+            f"| | |\n|---|---|\n"
+            f"| Cells before layout | {r['area_um2']:,.0f} um2, {r['cells']} cells, {r['flops']} flops |\n"
+            f"| Tiles | **{r['tiles']}**: predicted utilization {r['utilization']:.1%} (likely {r['range'][0]:.1%} to {r['range'][1]:.1%}) -> **{r['verdict']}** |\n"
+            f"| 50 MHz, slow corner | {timing} |\n\n"
+            f"Prediction, not signoff. Model: {m['summary']}. [tt-fit](https://github.com/Joonsense/tt-fit)\n\n")
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     parser.add_argument('project', nargs='?', default='.')
     parser.add_argument('--tiles', help='tile size to check (default: smallest that fits)')
     parser.add_argument('--json', action='store_true')
+    parser.add_argument('--markdown', help='also append a markdown report to this file (for $GITHUB_STEP_SUMMARY)')
     args = parser.parse_args(argv)
     if not shutil.which('yosys'):
         raise SystemExit('yosys not found (brew install yosys, apt install yosys, or the OSS CAD Suite)')
@@ -177,6 +189,9 @@ def main(argv=None) -> int:
     chosen = next((name for name in sizes if checks[name]['verdict'] != 'too big'), sizes[-1])
     report = {'top': top, **synth, 'tiles': chosen, **checks[chosen], 'pre_layout_ss_slack_ns': pre_slack,
               'timing': timing_verdict(pre_slack, m, TILES[chosen]), 'model': m['summary']}
+    if args.markdown:
+        with open(args.markdown, 'a') as handle:
+            handle.write(markdown(report, m))
     if args.json:
         print(json.dumps(report, indent=1))
     else:

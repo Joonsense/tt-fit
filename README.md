@@ -50,6 +50,25 @@ python3 tt_fit.py [PROJECT_DIR] [--tiles 1x2] [--json]
 
 Exit code is 1 when the design is predicted too big or to fail timing, so it works as a pre-commit or CI gate.
 
+## GitHub Action
+
+Add a report to every push of your Tiny Tapeout repo (`.github/workflows/tt-fit.yaml`):
+
+```yaml
+name: tt-fit
+on: [push, workflow_dispatch]
+jobs:
+  fit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Joonsense/tt-fit@v1
+```
+
+It installs Yosys from the OSS CAD Suite, runs the area and tile prediction, and writes a table to the job summary in
+about a minute. Timing is skipped in CI (OpenSTA and the sky130 slow corner Liberty are not installed there).
+Inputs: `project-dir`, `tiles`, `fail-on-risk: true` to fail the step on a "too big" verdict.
+
 ## Where it comes from
 
 tt-fit is the first check in the agent pipeline that designed these Tiny Tapeout accelerators, where it rejects bad
