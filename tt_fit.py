@@ -140,27 +140,35 @@ def slack(work: Path, top: str) -> float | None:
     return float(found[-1]) if found else None
 
 
-def predict(area: float, tiles: int, m: dict) -> dict:
-    core = m['core_area_um2'].get(str(tiles), m['core_area_um2']['1'] * tiles)
-    utilization = (m['placed_per_estimate'] * area + m['placed_per_core'] * core) / core
-    low, high = utilization + m['error'][0], utilization + m['error'][1]
-    limit = m['max_routed_utilization']
+def predict(area: float, tiles: str, m: dict) -> dict:
+    core = m['core_area_um2'].get(tiles, m['core_area_um2']['1x1'] * TILES[tiles])
+    utilization = m['slope'] * area / core + m['offset']
+    low, high = utilization + m['band_p5'], utilization + m['band_p95']
+    limit = m['fits_limit']
     verdict = 'fits' if high <= limit else 'boundary' if low <= limit else 'too big'
     return {'utilization': round(utilization, 3), 'range': [round(low, 3), round(high, 3)], 'verdict': verdict}
 
 
-def timing_verdict(value: float | None, m: dict, tiles: int) -> str:
+def timing_risk(value: float | None, m: dict) -> dict | None:
+    """Share of real 20 ns projects in the same pre layout slack bucket that failed slow corner setup after layout."""
     if value is None:
-        return 'not checked'
-    rule = m['timing']['1x1' if tiles == 1 else 'larger']
-    if value >= rule['pass_min_ns']:
-        return 'meets'
-    return 'fails' if value <= rule['fail_max_ns'] else 'boundary'
+        return None
+    for b in m['timing_buckets']:
+        if (b['from_ns'] is None or value >= b['from_ns']) and (b['to_ns'] is None or value < b['to_ns']):
+            return {**b, 'fail_rate': round(b['failed'] / b['projects'], 3) if b['projects'] else None}
+    return None
+
+
+def risk_text(r: dict) -> str:
+    risk = r['timing_risk']
+    if r['pre_layout_ss_slack_ns'] is None:
+        return 'not checked (needs OpenSTA `sta` and the sky130 PDK from ciel or volare, or TT_FIT_SS_LIB)'
+    return (f"{r['pre_layout_ss_slack_ns']:+.2f} ns before layout: {risk['failed']} of {risk['projects']} real projects in this range "
+            f"({risk['fail_rate']:.0%}) missed 50 MHz at the slow corner after layout")
 
 
 def markdown(r: dict, m: dict) -> str:
-    timing = ('not checked (needs OpenSTA and the sky130 PDK)' if r['pre_layout_ss_slack_ns'] is None
-              else f"{r['pre_layout_ss_slack_ns']:+.2f} ns before layout -> **{r['timing']}**")
+    timing = risk_text(r)
     return (f"### tt-fit: `{r['top']}`\n\n"
             f"| | |\n|---|---|\n"
             f"| Cells before layout | {r['area_um2']:,.0f} um2, {r['cells']} cells, {r['flops']} flops |\n"
@@ -184,11 +192,11 @@ def main(argv=None) -> int:
         synth = synthesize(files, top, Path(directory))
         pre_slack = slack(Path(directory), top)
     sizes = [args.tiles] if args.tiles else list(TILES)
-    checks = {name: predict(synth['area_um2'], TILES[name], m) for name in sizes}
-    # smallest tile that is not too big; 'boundary' means the likely range crosses the highest utilization seen to route
+    checks = {name: predict(synth['area_um2'], name, m) for name in sizes}
+    # smallest tile that is not too big; 'boundary' means the likely range crosses the fits limit
     chosen = next((name for name in sizes if checks[name]['verdict'] != 'too big'), sizes[-1])
     report = {'top': top, **synth, 'tiles': chosen, **checks[chosen], 'pre_layout_ss_slack_ns': pre_slack,
-              'timing': timing_verdict(pre_slack, m, TILES[chosen]), 'model': m['summary']}
+              'timing_risk': timing_risk(pre_slack, m), 'model': m['summary']}
     if args.markdown:
         with open(args.markdown, 'a') as handle:
             handle.write(markdown(report, m))
@@ -198,13 +206,11 @@ def main(argv=None) -> int:
         print(f"{top}: {synth['area_um2']:,.0f} um2 of cells before layout ({synth['cells']} cells, {synth['flops']} flops)")
         print(f"  {chosen}: predicted utilization {report['utilization']:.1%} "
               f"(likely {report['range'][0]:.1%} to {report['range'][1]:.1%}) -> {report['verdict']}"
-              f" (routed fine up to {m['max_routed_utilization']:.1%} in calibration)")
-        if pre_slack is None:
-            print('  50 MHz timing: not checked (needs OpenSTA `sta` and the sky130 PDK from ciel or volare, or TT_FIT_SS_LIB)')
-        else:
-            print(f"  50 MHz timing, slow corner, before layout: {pre_slack:+.2f} ns -> {report['timing']}")
+              f" (real projects routed up to {m['routed_max']:.1%})")
+        print(f"  50 MHz timing: {risk_text(report)}")
         print(f"  model: {m['summary']}")
-    return 0 if report['verdict'] != 'too big' and report['timing'] != 'fails' else 1
+    risky = report['timing_risk'] is not None and (report['timing_risk']['fail_rate'] or 0) >= 0.5
+    return 0 if report['verdict'] != 'too big' and not risky else 1
 
 
 if __name__ == '__main__':

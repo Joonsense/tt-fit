@@ -5,36 +5,43 @@
 ```
 $ python3 tt_fit.py path/to/your-tt-project
 tt_um_joonsense_pin_dot_b26e52f8: 6,334 um2 of cells before layout (806 cells, 105 flops)
-  1x1: predicted utilization 63.4% (likely 59.5% to 70.1%) -> fits (routed fine up to 82.4% in calibration)
-  50 MHz timing, slow corner, before layout: +8.56 ns -> meets
+  1x1: predicted utilization 59.8% (likely 52.6% to 68.1%) -> fits (real projects routed up to 92.9%)
+  50 MHz timing: +8.56 ns before layout: 0 of 167 real projects in this range (0%) missed 50 MHz at the slow corner after layout
 ```
 
 It synthesizes your project with Yosys against sky130_fd_sc_hd, then turns the pre-layout cell area into a **predicted
-placement utilization** with a model calibrated on real LibreLane hardenings of Tiny Tapeout tiles. If OpenSTA and the
+placement utilization** with a model calibrated on 436 real Tiny Tapeout shuttle projects. If OpenSTA and the
 sky130 PDK are installed, it also checks setup slack at the slow corner (ss, 100C, 1.60V) with the same constraints the
 TT flow uses, and says whether that has always, never, or sometimes closed after layout.
 
 ## How good is the prediction
 
-The model was fit on 13 hardenings (LibreLane 3.0.14, sky130A, TT template) and then frozen. It was then checked on
-**13 later layouts it had never seen** (9 at 1x1, 4 at 1x2):
+Version 2 is calibrated on **436 real projects** from three Tiny Tapeout sky130 shuttles (ttsky26a, 26b, 26c): for
+each, tt-fit ran on the project's own sources at the submitted commit and was compared with the shuttle's published
+layout metrics. Every row is in [`calibration.json`](calibration.json).
 
 | | |
 |---|---|
-| Error on the 9 unseen 1x1 layouts | **−1.4 to +2.2 percentage points** of utilization |
-| Error on the 4 unseen 1x2 layouts | +0.5 to +6.4 points (dense logic came out bigger than predicted) |
-| Error band it reports (from the fit set, wider on purpose) | −3.9 to +6.7 points |
-| Highest utilization that routed cleanly in the data | 82.4% |
-| Timing rule, 1x1 (20 ns clock) | pre-layout ss slack ≥ +1.89 ns always closed; ≤ −1.07 ns never did; in between, run the layout |
-| Timing rule, larger tiles | ≥ +8.4 ns (one dense 1x2 design missed at +4.46 and +6.32 ns, closed at +8.42 ns) |
+| Held out test | fit on 26a and 26b only (321 projects), then predicted the 115 projects of 26c: mean error **4.4 points**, median bias +0.9, **92% inside the 90% band** |
+| Band it reports | prediction −7.1 to +8.4 points (5th to 95th percentile of the error) |
+| Highest utilization that routed | 92.9% (103 projects above 80%, 23 above 90%); "fits" means the whole band stays under 90% |
+| Dense arithmetic | designs that are mostly adders and multipliers land near the top of the band (three of mine: +4.6, +6.8, +9.4 points) |
 
-Every data point is in [`calibration.json`](calibration.json), including the failures. The larger tile line comes from
-[tt-digit-classifier](https://github.com/Joonsense/tt-digit-classifier): at +4.46 ns it missed by 0.65 ns after routing
-(each input pin fed about 80 gates, and wire delay does not exist before layout), at +6.32 ns it missed by 0.004 ns
-(a 10 way comparison), and at +8.42 ns it closed with +5.26 ns. If you are close, register high fanout inputs and split
-wide comparisons. The designs are small accelerators
-and peripherals; very different designs (lots of memories, long carry chains) may sit outside the data. **It is a
-prediction, not a signoff**: the TT GitHub Actions flow is still the judge.
+Timing is reported as what actually happened to real projects with a 20 ns clock and the same pre layout slack:
+
+| Pre layout slow corner slack | Projects | Missed 50 MHz after layout |
+|---|---|---|
+| below −2 ns | 45 | 37 (82%) |
+| −2 to 0 ns | 20 | 12 (60%) |
+| 0 to +2 ns | 22 | 5 (23%) |
+| +2 to +4 ns | 25 | 8 (32%) |
+| +4 to +6 ns | 52 | 7 (13%) |
+| +6 to +8 ns | 43 | 2 (5%) |
+| +8 ns and up | 167 | **0** |
+
+Version 1 was fit on 13 layouts of one designer and claimed a ±3 point band and a "+1.89 ns always closes" rule.
+On the 436 real projects it over predicted by a median 3.8 points, and 17 projects at +2 ns or more missed timing.
+Both claims are withdrawn. **It is a prediction, not a signoff**: the TT GitHub Actions flow is still the judge.
 
 ## Install
 
@@ -48,7 +55,8 @@ For the timing check, also: OpenSTA (`sta` on PATH) and the sky130 PDK from `cie
 python3 tt_fit.py [PROJECT_DIR] [--tiles 1x2] [--json]
 ```
 
-Exit code is 1 when the design is predicted too big or to fail timing, so it works as a pre-commit or CI gate.
+Exit code is 1 when the design is predicted too big, or when at least half of the real projects with its pre layout
+slack missed timing, so it works as a pre-commit or CI gate.
 
 ## GitHub Action
 
