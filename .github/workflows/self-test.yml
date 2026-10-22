@@ -1,0 +1,22 @@
+name: self-test
+on:
+  push:
+  workflow_dispatch:
+jobs:
+  action:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: Joonsense/tt-lowbit-dot-accelerator
+          path: example
+      - id: fit
+        uses: ./
+        with:
+          project-dir: example
+      - name: timing was checked
+        run: |
+          grep -q "50 MHz" "$GITHUB_STEP_SUMMARY"
+          ! grep -q "not checked" "$GITHUB_STEP_SUMMARY"
+          grep -E "timing|utilization" "$GITHUB_STEP_SUMMARY"

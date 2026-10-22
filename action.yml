@@ -13,10 +13,27 @@ inputs:
   fail-on-risk:
     description: 'Fail the step when the design is predicted too big or to fail timing'
     default: 'false'
+  timing:
+    description: 'Install OpenSTA (prebuilt, from the LibreLane Nix cache) so the 50 MHz timing check runs'
+    default: 'true'
 runs:
   using: 'composite'
   steps:
     - uses: YosysHQ/setup-oss-cad-suite@v3
+    - if: inputs.timing == 'true' && runner.os == 'Linux' && runner.arch == 'X64'
+      uses: cachix/install-nix-action@v31
+      with:
+        extra_nix_config: |
+          extra-substituters = https://nix-cache.fossi-foundation.org
+          extra-trusted-public-keys = nix-cache.fossi-foundation.org:3+K59iFwXqKsL7BNu6Guy0v+uTlwsxYQxjspXzqLYQs=
+    - if: inputs.timing == 'true' && runner.os == 'Linux' && runner.arch == 'X64'
+      name: OpenSTA
+      shell: bash
+      run: |
+        # OpenSTA from LibreLane 3.0.14 (the version the Tiny Tapeout flow pins), fetched as a binary, no build
+        sta=/nix/store/g119ksxxjhq190g79gkbqbpbg9zmvp0m-opensta
+        nix-store --realise "$sta" > /dev/null
+        echo "$sta/bin" >> "$GITHUB_PATH"
     - name: tt-fit
       shell: bash
       env:

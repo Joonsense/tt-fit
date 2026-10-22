@@ -29,6 +29,10 @@ TT_LIB_URL = ('https://raw.githubusercontent.com/The-OpenROAD-Project/OpenROAD-f
               'f52850725e4ffe4030175328aa976cd8fb4943b9/flow/platforms/sky130hd/lib/sky130_fd_sc_hd__tt_025C_1v80.lib')
 TT_LIB_SHA256 = 'ec0e1067a35c8bf20b11e58d1e8ac53326067e4dac84a125cc1b917a3518d0d9'
 SS_LIB_NAME = 'sky130_fd_sc_hd__ss_100C_1v60.lib'
+# Same file as the ciel sky130 PDK 8afc8346 that LibreLane 3.0.14 uses (Apache 2.0, google/skywater-pdk-libs-sky130_fd_sc_hd),
+# mirrored as a release asset so the timing check works without installing the 1 GB PDK.
+SS_LIB_URL = 'https://github.com/Joonsense/tt-fit/releases/download/sky130-ss-8afc8346/' + SS_LIB_NAME
+SS_LIB_SHA256 = '9b24f0db3967ac67b4cae1f74bb480fd47922d18d0ed577e3c121739b412c361'
 TILES = {'1x1': 1, '1x2': 2, '2x2': 4, '3x2': 6, '4x2': 8, '6x2': 12, '8x2': 16}
 # Same values as the TT LibreLane base.sdc: 20 ns clock, 20% IO delay, 0.25 ns uncertainty, 5% derate
 SDC = """create_clock [get_ports clk] -name clk -period 20
@@ -50,21 +54,26 @@ def model() -> dict:
     return json.loads((HERE / 'calibration.json').read_text())
 
 
-def tt_library() -> Path:
-    path = CACHE / 'sky130_fd_sc_hd__tt_025C_1v80.lib'
+def cached(name: str, url: str, sha256: str, label: str) -> Path:
+    path = CACHE / name
     if not path.is_file():
         CACHE.mkdir(parents=True, exist_ok=True)
-        print('downloading sky130_fd_sc_hd typical Liberty (12.8 MB, once)...', file=sys.stderr)
-        with urllib.request.urlopen(TT_LIB_URL, timeout=180) as response:
+        print(f'downloading sky130_fd_sc_hd {label} Liberty (12.8 MB, once)...', file=sys.stderr)
+        with urllib.request.urlopen(url, timeout=180) as response:
             data = response.read()
-        if hashlib.sha256(data).hexdigest() != TT_LIB_SHA256:
+        if hashlib.sha256(data).hexdigest() != sha256:
             raise SystemExit('downloaded Liberty does not match the pinned SHA-256')
         path.write_bytes(data)
     return path
 
 
+def tt_library() -> Path:
+    return cached('sky130_fd_sc_hd__tt_025C_1v80.lib', TT_LIB_URL, TT_LIB_SHA256, 'typical')
+
+
 def ss_library() -> Path | None:
-    """The slow corner Liberty ships with the sky130 PDK (ciel or volare), not as a separate download."""
+    """The slow corner Liberty: TT_FIT_SS_LIB, else the sky130 PDK from ciel or volare, else (only when OpenSTA is
+    installed, so the timing check can run) the pinned mirror downloaded once to the cache."""
     if os.environ.get('TT_FIT_SS_LIB'):
         return Path(os.environ['TT_FIT_SS_LIB'])
     for root in (Path.home() / '.ciel', Path.home() / '.volare', Path(os.environ.get('PDK_ROOT', '/nonexistent'))):
@@ -72,6 +81,8 @@ def ss_library() -> Path | None:
             found = sorted(root.glob(f'**/sky130A/libs.ref/sky130_fd_sc_hd/lib/{SS_LIB_NAME}'))
             if found:
                 return found[-1]
+    if shutil.which('sta'):
+        return cached(SS_LIB_NAME, SS_LIB_URL, SS_LIB_SHA256, 'slow corner')
     return None
 
 
@@ -162,7 +173,7 @@ def timing_risk(value: float | None, m: dict) -> dict | None:
 def risk_text(r: dict) -> str:
     risk = r['timing_risk']
     if r['pre_layout_ss_slack_ns'] is None:
-        return 'not checked (needs OpenSTA `sta` and the sky130 PDK from ciel or volare, or TT_FIT_SS_LIB)'
+        return 'not checked (needs OpenSTA `sta` on PATH; the slow corner Liberty is then downloaded once)'
     return (f"{r['pre_layout_ss_slack_ns']:+.2f} ns before layout: {risk['failed']} of {risk['projects']} real projects in this range "
             f"({risk['fail_rate']:.0%}) missed 50 MHz at the slow corner after layout")
 
